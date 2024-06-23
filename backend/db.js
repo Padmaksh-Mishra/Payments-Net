@@ -1,6 +1,6 @@
 const mongoose = require("mongoose")
 
-mongoose.connect("mongodb+srv://admin:mongo2024@payments-net.ycxkpsn.mongodb.net/")
+mongoose.connect("REDACTED")
             .then(() => console.log("MongoDB connected."))
             .catch(err => console.log("Faild to connect: ",err))
 
