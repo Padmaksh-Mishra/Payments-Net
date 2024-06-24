@@ -8,7 +8,8 @@ corsOptions = {
     origin:"/api",
     methods:["GET", "POST"],
 };
-app.use(cors());
+
+app.use(cors(corsOptions));
 
 //Middleware for parsing json bodies
 app.use(express.json());
