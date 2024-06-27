@@ -1,2 +1,2 @@
 JWT_SECRET = "JaiMataDi"
-module.exports = JWT_SECRET
+module.exports = {JWT_SECRET}

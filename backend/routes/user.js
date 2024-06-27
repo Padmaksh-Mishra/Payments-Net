@@ -1,12 +1,18 @@
 const express = require("express");
 const {z} = require("zod");
 const jwt = require("jsonwebtoken");
-const {User} = require("../db");
+const {User,Account} = require("../db");
 const {JWT_SECRET} = require("../config");
 const {authMiddleware} = require("../middleware")
+const bcrypt = require('bcryptjs');
 
-const app = express();
+
 const router = express.Router();
+
+// Define routes for userRouter
+router.post("/", (req, res) => {
+    res.json(req.body);
+});
 
 
 // zod layers 
@@ -15,23 +21,23 @@ const router = express.Router();
 const signupSchema = z.object({
     username: z.string().email("Invalid email format"),
     password: z.string().min(6,"Password must be atleast 6 characters long"),
-    firstname: z.string().nonempty("First Name cannot be empty"),
-    lastname: z.string().nonempty("Last Name cannot be empty")
+    firstname: z.string().min(1,"First Name cannot be empty"),
+    lastname: z.string().min(1,"Last Name cannot be empty")
 });
 
 const signinSchema = z.object({
     username: z.string().email("Invalid email format"),
-    password: z.string().nonempty("Password cannot be empty")
+    password: z.string().min(1,"Password cannot be empty")
 });
 
 const updateUserSchema = z.object({
     password: z.string().min(6,"Password must be atleast 6 characters long").optional(),
-    firstname: z.string().nonempty("First Name cannot be empty").optional(),
-    lastname: z.string().nonempty("Last Name cannot be empty").optional(),
+    firstname: z.string().min(1,"First Name cannot be empty").optional(),
+    lastname: z.string().min(1,"Last Name cannot be empty").optional(),
 });
 
 const querySchema = z.object({
-    name: z.string().nonempty("Name is required to search")
+    name: z.string().min(1,"Name is required to search")
 });
 
 //buissiness logic validation (Checks to ensure passwords have requested pattern)
@@ -58,26 +64,29 @@ const userResponseSchema = z.object({
 });
 
 //44.15 error
-app.post("/signup",async (req,res) => {
+router.post("/signup",async (req,res) => {
     try {
-        const parsedInput = databaseSchema.parse(buissLogic.parse(signupSchema.parse(req.body)));
+        const parsedInput = signupSchema.parse(req.body);
         const {username, password, firstname, lastname} = parsedInput;
         
         //check if user already exists
-        const userExists = User.findOne({username});
+        const userExists = await User.findOne({
+            username: username,
+        });
         if(userExists){
             return res.status(411).json({
-                message: "User already exists."
+                message: "User already exists.",
+                name: username
             });
         }
+        const hashedPassword = await bcrypt.hash(password,1);
         
-        const hashedPassword = await bcrypt.hash(password,10);
-        const newUser = {username: username, password: hashedPassword, firstname: firstname, lastname: lastname};
+        const newUser = new User({username: username, password: hashedPassword, firstname: firstname, lastname: lastname});
         const dbUser = await newUser.save();
-
-        const newAccount = {userID: dbUser._id, balance: (1 + Math.random()*10000).toString()}
+        
+        const newAccount = new Account({userID: dbUser._id, balance: (1 + Math.random()*10000).toString()});
         await newAccount.save();
-
+        
         const token = jwt.sign({
             userID: dbUser._id,
         },JWT_SECRET,{expiresIn : "1h"});
@@ -90,20 +99,23 @@ app.post("/signup",async (req,res) => {
             message: "User created successfully",
             data: responseData
         });
+
     }catch(error) {
         if(error instanceof z.ZodError){
-            return res.status(400).json({errors: error.errors});
+            return res.status(400).json({
+                message: "Zod error",
+                errors: error.errors});
         }
         return res.status(500).json({error : "Internal Server Error"});
     }
     
 });
 
-app.post("/signin",async (req,res) => {
+router.post("/signin",async (req,res) => {
     try{
         const parsedInput = signinSchema.parse(req.body);
         const {username,password} = parsedInput;
-        const user = await User.findOne({username});
+        const user = await User.findOne({username:username});
         if(!user){
             return res.status(411).json({
                 message: "User does not exist. Please signup for a new account, it's 100% free",
@@ -120,11 +132,11 @@ app.post("/signin",async (req,res) => {
         },JWT_SECRET,{expiresIn : "1h"});
         
         const responseData = userResponseSchema.parse({
-            id: dbUser._id.toString(),
+            id: user._id.toString(),
             token:token
         });
         res.status(200).json({
-            message: "User created successfully",
+            message: "Signed in successfully",
             data: responseData
         });
         
@@ -137,7 +149,7 @@ app.post("/signin",async (req,res) => {
 });
 
 
-app.post("/user", authMiddleware, async (req,res) => {
+router.post("/update", authMiddleware, async (req,res) => {
     try{
         const parsedInput = buissLogic(updateUserSchema.parse(req.body));
         const userID = req.userID;
@@ -172,7 +184,7 @@ app.post("/user", authMiddleware, async (req,res) => {
 });
 
 
-app.get('/bulk', authMiddleware, async (req, res) => {
+router.get('/bulk', async (req, res) => {
     try{
         const sanitizedQuery = querySchema.parse(req.query);
         const {name} = sanitizedQuery;

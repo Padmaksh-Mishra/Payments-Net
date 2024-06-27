@@ -1,7 +1,7 @@
 const mongoose = require("mongoose")
 const {DB_URI} = require("./secret")
 
-mongoose.connect(DB_URI)
+mongoose.connect("mongodb://localhost:27017")
             .then(() => console.log("MongoDB connected."))
             .catch(err => console.log("Faild to connect: ",err))
 
@@ -27,6 +27,8 @@ const userSchema = new mongoose.Schema({
     }
 });
 
+const User = mongoose.model("User", userSchema);
+
 const accountSchema = mongoose.Schema({
     userID: {
         type: mongoose.Schema.Types.ObjectId,           // So that money can be stored only if u have an account
@@ -40,7 +42,6 @@ const accountSchema = mongoose.Schema({
 });
 
 
-const User = mongoose.model("User", userSchema);
 const Account = mongoose.model("Account", accountSchema);
 
 module.exports = {
