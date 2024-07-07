@@ -1,5 +1,4 @@
 const mongoose = require("mongoose")
-const {DB_URI} = require("./secret")
 
 mongoose.connect("mongodb://localhost:27017")
             .then(() => console.log("MongoDB connected."))

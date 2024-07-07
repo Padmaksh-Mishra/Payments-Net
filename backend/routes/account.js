@@ -51,8 +51,6 @@ router.post("/transfer",authMiddleware,async (req,res) => {
             userID: to
         }).session(session);
         
-        
-        console.log(account.balance);
     
         if (!toAccount) {
             await session.abortTransaction();

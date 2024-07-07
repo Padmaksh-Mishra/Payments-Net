@@ -37,7 +37,7 @@ const updateUserSchema = z.object({
 });
 
 const querySchema = z.object({
-    name: z.string().min(1,"Name is required to search")
+    name: z.string()
 });
 
 //buissiness logic validation (Checks to ensure passwords have requested pattern)
@@ -189,14 +189,15 @@ router.get('/bulk', async (req, res) => {
         const sanitizedQuery = querySchema.parse(req.query);
         const {name} = sanitizedQuery;
         
+        const regex = new RegExp(".*" + name + ".*", "i");
         const users = await User.find({
             $or: [
-                {firstname: new RegExp("^*"+name+"*$","i")},
-                {lastname: new RegExp("^*"+name+"*$","i")}
+                { firstname: regex },
+                { lastname: regex }
             ]
         });
         
-        if(users.length()==0){
+        if(users.length==0){
             return res.status(400).json({
                 message: "No user found try a diffrent search"
             });
@@ -208,7 +209,7 @@ router.get('/bulk', async (req, res) => {
             lastname: user.lastname,
         }));
         
-        res.status(200).json(formatedUsers);
+        res.status(200).json({users: formatedUsers});
     }catch(error){
         if(error instanceof z.ZodError){
             return res.status(411).json({
@@ -217,6 +218,7 @@ router.get('/bulk', async (req, res) => {
         }
         return res.status(500).json({
             message: "Something went wrong <user_serarch_bulk>",
+            error: error
         })
     }
 })
